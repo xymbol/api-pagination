@@ -21,13 +21,17 @@ module ApiPagination
     end
 
     def pages_from(collection, options = {})
-      return pagy_pages_from(collection) if ApiPagination.config.paginator == :pagy && collection.is_a?(Pagy)
+      if ApiPagination.config.paginator == :pagy && collection.is_a?(Pagy)
+        return pagy_pages_from(collection, options)
+      end
 
       {}.tap do |pages|
         unless collection.first_page?
           pages[:first] = 1
           pages[:prev]  = collection.current_page - 1
         end
+
+        next if options[:without_count]
 
         unless collection.last_page? || (ApiPagination.config.paginator == :kaminari && collection.out_of_range?)
           pages[:last] = collection.total_pages if ApiPagination.config.include_total
@@ -36,7 +40,9 @@ module ApiPagination
       end
     end
 
-    def total_from(collection)
+    def total_from(collection, options = {})
+      return if options[:without_count]
+
       case ApiPagination.config.paginator
         when :pagy          then collection.count.to_s
         when :kaminari      then collection.total_count.to_s
@@ -60,25 +66,27 @@ module ApiPagination
         collection[pagy.offset, pagy.items]
       end
 
-      return [collection, pagy]
+      [collection, pagy]
     end
 
     def pagy_from(collection, options)
-      if options[:count]
-        count = options[:count]
+      count = if options[:count]
+        options[:count]
       else
-        count = collection.is_a?(Array) ? collection.count : collection.count(:all)
+        collection.is_a?(Array) ? collection.count : collection.count(:all)
       end
-      
+
       Pagy.new(count: count, items: options[:per_page], page: options[:page])
     end
 
-    def pagy_pages_from(pagy)
+    def pagy_pages_from(pagy, options)
       {}.tap do |pages|
         unless pagy.page == 1
           pages[:first] = 1
           pages[:prev]  = pagy.prev
         end
+
+        next if options[:without_count]
 
         unless pagy.page == pagy.pages
           pages[:last] = pagy.pages if ApiPagination.config.include_total
@@ -94,9 +102,12 @@ module ApiPagination
         options[:per_page] = get_default_per_page_for_kaminari(collection)
       end
 
+      without_count = !collection.is_a?(Array) &&
+        (options[:without_count] || !ApiPagination.config.include_total)
+
       collection = Kaminari.paginate_array(collection, paginate_array_options) if collection.is_a?(Array)
       collection = collection.page(options[:page]).per(options[:per_page])
-      collection.without_count if !collection.is_a?(Array) && !ApiPagination.config.include_total
+      collection.without_count if without_count
       [collection, nil]
     end
 

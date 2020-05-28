@@ -30,7 +30,7 @@ module Rails
       end
     end
 
-    def _paginate_collection(collection, options={})
+    def _paginate_collection(collection, options = {})
       options[:page] = ApiPagination.config.page_param(params)
       options[:per_page] ||= ApiPagination.config.per_page_param(params)
 
@@ -45,17 +45,21 @@ module Rails
         links << %(<#{url}?#{new_params.to_param}>; rel="#{k}")
       end
 
-      total_header    = ApiPagination.config.total_header
       per_page_header = ApiPagination.config.per_page_header
       page_header     = ApiPagination.config.page_header
-      include_total   = ApiPagination.config.include_total
+      include_total =
+        ApiPagination.config.include_total && !options[:without_count]
 
       headers['Link'] = links.join(', ') unless links.empty?
       headers[per_page_header] = options[:per_page].to_s
       headers[page_header] = options[:page].to_s unless page_header.nil?
-      headers[total_header] = total_count(pagy || collection, options).to_s if include_total
 
-      return collection
+      if include_total
+        total_header = ApiPagination.config.total_header
+        headers[total_header] = total_count(pagy || collection, options).to_s
+      end
+
+      collection
     end
 
     def total_count(collection, options)
@@ -63,7 +67,7 @@ module Rails
         paginate_array_options = options[:paginate_array_options]
         paginate_array_options[:total_count] if paginate_array_options
       end
-      total_count || ApiPagination.total_from(collection)
+      total_count || ApiPagination.total_from(collection, options)
     end
 
     def base_url

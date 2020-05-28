@@ -144,6 +144,20 @@ describe NumbersController, :type => :controller do
       after { ApiPagination.config.include_total = true }
     end
 
+    context 'without count queries' do
+      it 'does not include a Total header' do
+        get :index_without_count
+
+        expect(response.headers).not_to include('Total')
+      end
+
+      it 'does not include a Link header' do
+        get :index_without_count
+
+        expect(response.headers).not_to include('Link')
+      end
+    end
+
     context 'custom page param' do
       context 'page_param as a symbol' do
         before do
@@ -262,7 +276,7 @@ describe NumbersController, :type => :controller do
           end
         end
 
-        after :all do 
+        after :all do
           class Fixnum
             class << self
               undef_method :default_per_page, :per_page
@@ -295,7 +309,7 @@ describe NumbersController, :type => :controller do
       end
     end
 
-    context 'default per page in objects without paginator defaults' do 
+    context 'default per page in objects without paginator defaults' do
       it 'should not fail if model does not respond to per page' do
         get :index_with_no_per_page, params: {count: 100}
 
